@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://lokeshreddy.dev/</loc></url>
+  <url><loc>https://lokeshreddy.dev/projects</loc></url>
+  <url><loc>https://lokeshreddy.dev/architecture</loc></url>
+  <url><loc>https://lokeshreddy.dev/security</loc></url>
+  <url><loc>https://lokeshreddy.dev/experience</loc></url>
+  <url><loc>https://lokeshreddy.dev/studio</loc></url>
+  <url><loc>https://lokeshreddy.dev/playground</loc></url>
+  <url><loc>https://lokeshreddy.dev/notes/release-gates-for-llm-systems</loc></url>
+  <url><loc>https://lokeshreddy.dev/notes/bounded-agents-over-open-loops</loc></url>
+  <url><loc>https://lokeshreddy.dev/notes/retrieval-is-a-security-boundary</loc></url>
+  <url><loc>https://lokeshreddy.dev/about</loc></url>
+  <url><loc>https://lokeshreddy.dev/contact</loc></url>
+  <url><loc>https://lokeshreddy.dev/resume</loc></url>
+  <url><loc>https://lokeshreddy.dev/lab/rag-debugger</loc></url>
+  <url><loc>https://lokeshreddy.dev/lab/agent-trace</loc></url>
+  <url><loc>https://lokeshreddy.dev/privacy</loc></url>
+  <url><loc>https://lokeshreddy.dev/terms</loc></url>
+</urlset>

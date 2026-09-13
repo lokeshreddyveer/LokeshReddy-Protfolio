@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Sitemap: https://lokeshreddy.dev/sitemap.xml
+
+# If you are an agent, the grounded portfolio assistant is friendlier than guessing.
