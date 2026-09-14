@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SiteChrome } from "@/components/site-chrome";
+import { SiteIntegrations } from "@/components/site-integrations";
 import "./globals.css";
 import "./premium.css";
 import "./redesign.css";
@@ -13,10 +14,17 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   openGraph: { title: "Lokesh Reddy V | Generative AI Engineer", description: "Production RAG, bounded agents, evaluation systems, and LLM security controls.", type: "website", url: "https://lokeshreddy.dev" },
   twitter: { card: "summary_large_image", title: "Lokesh Reddy V | Generative AI Engineer", description: "Production RAG, bounded agents, evaluation systems, and LLM security controls." },
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } : undefined,
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
   },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -27,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{__html:`document.documentElement.dataset.theme='dark'`}} /></head>
-      <body className="antialiased"><script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify({"@context":"https://schema.org","@type":"Person","name":"Lokesh Reddy V","jobTitle":"Generative AI Engineer","url":"https://lokeshreddy.dev","knowsAbout":["Retrieval-Augmented Generation","AI Agents","LLM Security","Azure OpenAI","AI Evaluation","Python","FastAPI"]})}}/><SiteChrome>{children}</SiteChrome></body>
+      <body className="antialiased"><script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify({"@context":"https://schema.org","@type":"Person","name":"Lokesh Reddy V","jobTitle":"Generative AI Engineer","url":"https://lokeshreddy.dev","knowsAbout":["Retrieval-Augmented Generation","AI Agents","LLM Security","Azure OpenAI","AI Evaluation","Python","FastAPI"]})}}/><SiteIntegrations/><SiteChrome>{children}</SiteChrome></body>
     </html>
   );
 }

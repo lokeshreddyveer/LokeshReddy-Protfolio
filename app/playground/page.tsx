@@ -6,6 +6,7 @@ import { ReddyHoverAction } from "@/components/portfolio-ask";
 
 type ModuleId = "rag" | "injection" | "evaluate" | "compare" | "agent" | "pii";
 type Step = { label: string; detail: string; ms: number; state?: "ok" | "warn" | "block" };
+type PlaygroundResponse = { ready?: boolean; dailyLimit?: number; remaining?: number; live?: boolean; result?: string; error?: string };
 
 const modules: Array<{ id: ModuleId; no: string; title: string; copy: string }> = [
   { id: "rag", no: "01", title: "Live RAG Engine", copy: "Paste text, ask a question, inspect evidence." },
@@ -45,13 +46,32 @@ export default function PlaygroundPage() {
   const [liveResult, setLiveResult] = useState("");
   const [remaining, setRemaining] = useState<number | null>(null);
   const [gatewayReady, setGatewayReady] = useState(false);
+  const [gatewayChecked, setGatewayChecked] = useState(false);
   const [totalMs, setTotalMs] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetch("/api/playground").then(response => response.json()).then(payload => {
+  const checkGateway = async () => {
+    setGatewayChecked(false);
+    try {
+      const response = await fetch("/api/playground", { cache: "no-store" });
+      const payload = await response.json() as PlaygroundResponse;
       setGatewayReady(Boolean(payload.ready));
       if (typeof payload.dailyLimit === "number") setRemaining(payload.dailyLimit);
-    }).catch(() => setGatewayReady(false));
+    } catch {
+      setGatewayReady(false);
+    } finally {
+      setGatewayChecked(true);
+    }
+  };
+
+  useEffect(() => {
+    fetch("/api/playground", { cache: "no-store" })
+      .then(response => response.json() as Promise<PlaygroundResponse>)
+      .then(payload => {
+        setGatewayReady(Boolean(payload.ready));
+        if (typeof payload.dailyLimit === "number") setRemaining(payload.dailyLimit);
+      })
+      .catch(() => setGatewayReady(false))
+      .finally(() => setGatewayChecked(true));
   }, []);
 
   const chunks = useMemo(() => doc.split(/\n\s*\n/).filter(Boolean).map((text, i) => ({ id: i + 1, text: text.trim() })), [doc]);
@@ -80,7 +100,7 @@ export default function PlaygroundPage() {
     const started = performance.now();
     try {
       const response = await fetch("/api/playground", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ module, input: doc, context, question: module === "rag" ? question : attack }) });
-      const payload = await response.json();
+      const payload = await response.json() as PlaygroundResponse;
       if (typeof payload.remaining === "number") setRemaining(payload.remaining);
       if (!response.ok) {
         setLiveStatus(payload.error || "Live model is unavailable. Check the gateway and try again.");
@@ -116,7 +136,7 @@ export default function PlaygroundPage() {
   };
 
   return <main className="playground-page">
-    <section className="playground-hero shell"><div><p className="kicker">LIVE PLAYGROUND / PRODUCTION GENAI</p><h1>Operate the system.<br/><span>Inspect every decision.</span></h1><p>Choose a module, edit the sample, run the live model, then inspect the pipeline and evidence behind the result.</p><div className="playground-how"><span><b>01</b>Choose a system</span><i/><span><b>02</b>Edit the input</span><i/><span><b>03</b>Run and inspect</span></div></div><div className="playground-status"><span><i className={gatewayReady?"ready":""}/> MODEL GATEWAY</span><strong>{gatewayReady?"LIVE":"OFF"}</strong><small>{gatewayReady ? "Secure gateway ready" : "Checking gateway…"}</small><em>{remaining === null ? "10 runs / network / day" : `${remaining} live runs remaining today`}</em></div></section>
+    <section className="playground-hero shell"><div><p className="kicker">LIVE PLAYGROUND / PRODUCTION GENAI</p><h1>Operate the system.<br/><span>Inspect every decision.</span></h1><p>Choose a module, edit the sample, run the live model, then inspect the pipeline and evidence behind the result.</p><div className="playground-how"><span><b>01</b>Choose a system</span><i/><span><b>02</b>Edit the input</span><i/><span><b>03</b>Run and inspect</span></div></div><div className="playground-status" aria-live="polite"><span><i className={gatewayReady?"ready":""}/> MODEL GATEWAY</span><strong>{!gatewayChecked ? "CHECKING" : gatewayReady ? "LIVE" : "OFF"}</strong><small>{!gatewayChecked ? "Checking gateway…" : gatewayReady ? "Secure gateway ready" : "Gateway unavailable"}</small><em>{remaining === null ? "10 runs / network / day" : `${remaining} live runs remaining today`}</em>{gatewayChecked && !gatewayReady && <button type="button" className="subtle-button playground-status-retry" onClick={() => void checkGateway()}>Retry check</button>}</div></section>
     <section className="shell playground-shell"><nav className="playground-nav" aria-label="Playground modules"><p>CHOOSE A MODULE</p>{modules.map(item => <button className={active === item.id ? "active" : ""} onClick={() => { setActive(item.id); setLiveStatus(""); setLiveResult(""); setTotalMs(null); }} key={item.id}><span>{item.no}</span><div><strong>{item.title}</strong><small>{item.copy}</small></div><ChevronRight size={15}/></button>)}</nav><section className="playground-workbench"><header><span><i/> {active==="pii"?"LOCAL PRIVACY MODE":"LIVE MODEL MODE"}</span><strong>{selected.no} · {selected.title}</strong><em>{liveStatus || (gatewayReady?"READY TO RUN":"PROVIDER CHECK")}</em><ReddyHoverAction scope={`the ${selected.title} playground module`} question={`Explain the ${selected.title} Playground module, what the current trace demonstrates, and what I should inspect next.`} /></header><div className="playground-body"><div className="playground-title"><p className="kicker">PURPOSE</p><h2>{selected.title}</h2><p>{selected.copy} Edit the sample below, run it, and read the trace from top to bottom.</p></div><div className="playground-runbar"><div><Server/><span><strong>{active==="pii"?"Local-only protection":"Server-side inference"}</strong><small>{active==="pii"?"Sensitive values stay in this browser.":gatewayReady?"Protected inference · raw inputs not retained":"Gateway unavailable"}</small></span></div><button className="button" onClick={() => runLive(active)} disabled={running || (!gatewayReady && active!=="pii")}><Play size={16}/>{running ? "Running…" : active === "pii" ? "Run locally" : "Run live model"}</button></div>{render()}{parsedResult&&<section className="play-live-answer"><div><span>LIVE MODEL RESULT</span><strong>{liveStatus}</strong>{totalMs!==null&&<em><Gauge/> {totalMs}ms total</em>}</div><h3>{parsedResult.answer||parsedResult.refusal_reason||"No answer returned."}</h3>{parsedResult.citations&&<p>Sources: {parsedResult.citations.join(" · ")}</p>}<small>Confidence: {String(parsedResult.confidence??"not supplied")}</small></section>}<div className="playground-actions"><button className="subtle-button" onClick={() => navigator.clipboard?.writeText(liveResult || "Public-safe playground trace")}><Copy size={15}/> Copy result</button></div><aside className="playground-proof"><Sparkles size={18}/><div><strong>What this demonstrates</strong><p>{active === "rag" ? "Instrumentation around retrieval and generation: evidence, refusal, citations, and evaluation—not just chain.run()." : active === "injection" ? "Layered defense: deterministic rules, semantic classification, policy, and redacted audit events." : active === "evaluate" ? "Evaluation as a release control: claim-level grounding, relevance, completeness, and hallucination checks." : active === "compare" ? "The difference between a demo path and a production path is control, not a larger prompt." : active === "agent" ? "Bounded autonomy: explicit states, least-privilege tools, confirmation gates, and recovery." : "A data boundary before generation: detect, classify, redact, and audit without logging original values."}</p></div></aside></div></section></section>
   </main>;
 }

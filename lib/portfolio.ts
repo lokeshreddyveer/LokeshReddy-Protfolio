@@ -203,9 +203,10 @@ export const certifications = [
 ] as const;
 
 export const fieldNotes = [
-  { slug: "release-gates-for-llm-systems", type: "Decision note", title: "Release gates for LLM systems", summary: "Why quality, security, latency, and rollback evidence should travel together before an AI feature reaches production.", tags: ["Evaluation", "Operations"], href: "/notes/release-gates-for-llm-systems" },
-  { slug: "bounded-agents-over-open-loops", type: "Architecture note", title: "When a bounded workflow beats an autonomous loop", summary: "A practical decision rule for choosing explicit states, scoped tools, approval gates, and recovery paths.", tags: ["Agents", "Control"], href: "/notes/bounded-agents-over-open-loops" },
-  { slug: "retrieval-is-a-security-boundary", type: "Security note", title: "Retrieved text is evidence—not authority", summary: "How to keep malicious or irrelevant instructions inside retrieved content from becoming executable model behavior.", tags: ["RAG", "Security"], href: "/notes/retrieval-is-a-security-boundary" },
+  { slug: "evaluating-faithfulness-in-rag", type: "Evaluation note", title: "How to evaluate faithfulness in RAG systems", summary: "A practical way to separate retrieval coverage, supported claims, adversarial cases, and release decisions.", tags: ["RAG", "Evaluation"], href: "/notes/evaluating-faithfulness-in-rag", publishedAt: "2026-09-14" },
+  { slug: "release-gates-for-llm-systems", type: "Decision note", title: "Release gates for LLM systems", summary: "Why quality, security, latency, and rollback evidence should travel together before an AI feature reaches production.", tags: ["Evaluation", "Operations"], href: "/notes/release-gates-for-llm-systems", publishedAt: "2026-09-09" },
+  { slug: "bounded-agents-over-open-loops", type: "Architecture note", title: "When a bounded workflow beats an autonomous loop", summary: "A practical decision rule for choosing explicit states, scoped tools, approval gates, and recovery paths.", tags: ["Agents", "Control"], href: "/notes/bounded-agents-over-open-loops", publishedAt: "2026-09-04" },
+  { slug: "retrieval-is-a-security-boundary", type: "Security note", title: "Retrieved text is evidence—not authority", summary: "How to keep malicious or irrelevant instructions inside retrieved content from becoming executable model behavior.", tags: ["RAG", "Security"], href: "/notes/retrieval-is-a-security-boundary", publishedAt: "2026-08-29" },
 ] as const;
 
 export const assistantAnswers = [

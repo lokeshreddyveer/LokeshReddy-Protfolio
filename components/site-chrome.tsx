@@ -8,12 +8,12 @@ import { Menu, X } from "lucide-react";
 import ProofBar from "@/components/ProofBar";
 
 const links = [
-  ["Projects", "/projects"], ["Architecture", "/architecture"], ["Security", "/security"],
-  ["Experience", "/experience"], ["Studio", "/studio"], ["Playground", "/playground"],
+  ["Projects", "/projects"], ["Architecture", "/architecture"],
+  ["Experience", "/experience"], ["Studio", "/studio"], ["Playground", "/playground"], ["Notes", "/notes"],
 ] as const;
 
 const menuLinks = [
-  ["About", "/about"], ["Notes", "/notes"], ["Résumé", "/resume"], ["Contact", "/contact"],
+  ["About", "/about"], ["Résumé", "/resume"], ["Contact", "/contact"],
 ] as const;
 
 export function SiteChrome({ children }: { children: React.ReactNode }) {
@@ -50,10 +50,10 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
     <motion.header ref={header} className="minimal-nav full-nav" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: pathname === "/" ? 1.9 : 0.1 }}>
       <a className="minimal-logo" href="/" aria-label="Lokesh Reddy home">L<span>.</span></a>
       <nav className="full-nav-links" aria-label="Primary navigation">
-        {links.map(([label, href]) => <a key={href} className={menuForPath.startsWith(href) ? "active" : ""} href={href}>{label}</a>)}
+        {links.map(([label, href]) => <a key={href} className={menuForPath.startsWith(href) ? "active" : ""} href={href} aria-current={menuForPath.startsWith(href) ? "page" : undefined}>{label}</a>)}
         <div className="full-nav-dropdown">
           <button className="full-nav-menu-trigger" type="button" aria-label="Open more sections" aria-expanded={menuOpen} onClick={() => setMenuOpen(value => !value)}>{menuOpen ? <X size={15} /> : <Menu size={15} />}</button>
-          {menuOpen && <div className="full-nav-dropdown-menu">{menuLinks.map(([label, href]) => <a key={href} className={menuForPath.startsWith(href) ? "active" : ""} href={href}>{label}</a>)}</div>}
+          {menuOpen && <div className="full-nav-dropdown-menu">{menuLinks.map(([label, href]) => <a key={href} className={menuForPath.startsWith(href) ? "active" : ""} href={href} aria-current={menuForPath.startsWith(href) ? "page" : undefined}>{label}</a>)}</div>}
         </div>
         <a className="nav-contact" href="/contact">Let’s talk</a>
       </nav>
@@ -61,9 +61,9 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
         <button className="mobile-nav-toggle" type="button" aria-expanded={mobileMenuOpen} aria-controls="mobile-navigation" onClick={() => setMobileMenuOpen(value => !value)}>{mobileMenuOpen ? <X /> : <Menu />}</button>
       </div>
       <AnimatePresence>{mobileMenuOpen && <motion.nav id="mobile-navigation" className="full-mobile-nav" aria-label="Mobile navigation" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
-        {links.map(([label, href]) => <a key={href} className={menuForPath.startsWith(href) ? "active" : ""} href={href}>{label}<span>↗</span></a>)}
-        {menuLinks.map(([label, href]) => <a key={href} className={menuForPath.startsWith(href) ? "active" : ""} href={href}>{label}<span>↗</span></a>)}
-        <a href="/contact">Let’s talk<span>↗</span></a>
+        {links.map(([label, href]) => <a key={href} className={menuForPath.startsWith(href) ? "active" : ""} href={href} aria-current={menuForPath.startsWith(href) ? "page" : undefined} onClick={() => setMobileMenuOpen(false)}>{label}</a>)}
+        {menuLinks.map(([label, href]) => <a key={href} className={menuForPath.startsWith(href) ? "active" : ""} href={href} aria-current={menuForPath.startsWith(href) ? "page" : undefined} onClick={() => setMobileMenuOpen(false)}>{label}</a>)}
+        <a href="/contact" onClick={() => setMobileMenuOpen(false)}>Let’s talk</a>
       </motion.nav>}</AnimatePresence>
     </motion.header>
     {children}

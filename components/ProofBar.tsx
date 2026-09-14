@@ -9,6 +9,7 @@ type Message = { role: "user" | "proof"; text: string; source?: string; time: st
 type Tool = "jd" | "tailor" | "contact" | "interview" | "receipt" | null;
 type Language = "auto" | "en" | "te" | "hi" | "es" | "fr" | "de";
 type VisitorMode = "recruiter" | "manager" | "technical";
+type ProofResponse = { reply?: string; source?: string; error?: string };
 const source = "Sources: lokeshreddy.dev · current resume-derived portfolio content";
 const opening: Message = { role: "proof", text: "Hi! How are you? What would you like to know about Lokesh?", time: "" };
 const reddyTaglines = [
@@ -59,7 +60,7 @@ function formatMessageTime(value: string) {
 }
 
 function ReddyImage({ className, alt = "" }: { className: string; alt?: string }) {
-  const [src, setSrc] = useState("/reddy.png");
+  const [src, setSrc] = useState("/reddy-lokesh.png");
   useEffect(() => {
     const image = new Image();
     image.onload = () => {
@@ -88,10 +89,10 @@ function ReddyImage({ className, alt = "" }: { className: string; alt?: string }
       }
       context.putImageData(pixels, 0, 0); setSrc(canvas.toDataURL("image/png"));
     };
-    image.src = "/reddy.png";
+    image.src = "/reddy-lokesh.png";
   }, []);
 
-  return <img className={className} src={src} alt={alt} />;
+  return <img className={className} src={src} alt={alt} loading="eager" decoding="async" />;
 }
 
 function MicrophoneIcon({ listening = false }: { listening?: boolean }) {
@@ -150,6 +151,8 @@ export default function ProofBar() {
   const [viewAsOpen, setViewAsOpen] = useState(false);
 
   const capabilityPrompts: Array<[string, string]> = [
+    ["Just chat", "Have a natural, friendly conversation with me. Do not turn this into a portfolio tour unless it becomes relevant."],
+    ["Tell me about yourself", "Introduce yourself naturally, explain what you can help with, and ask what the visitor would like to talk about."],
     ["Compare projects", "Compare the Regulatory Intelligence, Due Diligence, Evaluation, and Applied NLP projects across problem, architecture, technologies, metrics, and trade-offs."],
     ["Resume + JD match", "Explain how to match a job description against Lokesh's resume and portfolio, then give strong matches, adjacent matches, gaps, and relevant links."],
     ["Interview prep", "Generate five technical interview questions for an engineering manager, with discussion areas and evidence from Lokesh's work."],
@@ -159,6 +162,14 @@ export default function ProofBar() {
     ["Recruiter tour", "Give me a two-minute recruiter tour: strongest outcomes, relevant projects, resume link, and recommended next step."],
     ["Recruiter dashboard", "Create a recruiter-ready candidate brief with fit signals, evidence, honest validation gaps, interview topics, and next action."],
   ];
+  const compactExplorePrompts = capabilityPrompts.filter(([label]) => [
+    "Explain this page",
+    "Compare projects",
+    "Recruiter tour",
+    "Resume + JD match",
+    "Interview prep",
+    "RAG security tour",
+  ].includes(label));
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -215,7 +226,7 @@ export default function ProofBar() {
         window.localStorage.setItem("reddy-remember", String(rememberConversation));
       } catch { /* storage may be blocked */ }
     }
-  }, [messages, hydrated]);
+  }, [messages, hydrated, rememberConversation]);
 
   useEffect(() => {
     const closeOnOutside = (event: PointerEvent) => {
@@ -295,23 +306,37 @@ export default function ProofBar() {
     try { window.localStorage.setItem("reddy-question-count", String(Number(window.localStorage.getItem("reddy-question-count") || "0") + 1)); } catch { /* analytics is device-local and optional */ }
     const responseLanguage = language === "auto" ? detectLanguage(question) : language;
     const nextMessages = [...messages, { role: "user" as const, text: question, time: new Date().toISOString() }];
-    setOpen(true); setInput(""); setMessages(nextMessages); setLoading(true);
+    let pageContext: { title?: string; heading?: string; notesQuery?: string; selectedProjects?: string[]; activeModule?: string; overlay?: string } = {};
     try {
-      const response = await fetch("/api/proof", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ page: window.location.pathname, mode: visitorMode, language: responseLanguage, webSearch, interviewMode, interviewRound, intent: detectIntent(question), messages: nextMessages.map(message => ({ role: message.role === "proof" ? "assistant" : "user", content: message.text })) }) });
-      const payload = await response.json();
+      pageContext = {
+        title: document.title.slice(0, 120),
+        heading: document.querySelector("main h1")?.textContent?.trim().slice(0, 160),
+        activeModule: document.querySelector(".playground-workbench header strong, .architecture-inspector h2, .studio-module-nav button.active")?.textContent?.trim().slice(0, 120) || "",
+        overlay: document.querySelector(".architecture-workbench")?.className.includes("security") ? "security" : document.querySelector(".architecture-workbench") ? "system" : "",
+        notesQuery: window.localStorage.getItem("notes-search-query")?.slice(0, 120) || "",
+        selectedProjects: JSON.parse(window.localStorage.getItem("project-compare-selection") || "[]").slice(0, 2),
+      };
+    } catch { /* page context is optional */ }
+    setOpen(true); setInput(""); setMessages(nextMessages); setLoading(true);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 30000);
+    try {
+      const response = await fetch("/api/proof", { method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal, body: JSON.stringify({ page: window.location.pathname, pageContext, mode: visitorMode, language: responseLanguage, webSearch, interviewMode, interviewRound, intent: detectIntent(question), messages: nextMessages.map(message => ({ role: message.role === "proof" ? "assistant" : "user", content: message.text })) }) });
+      const payload = await response.json() as ProofResponse;
       if (!response.ok) throw new Error(payload.error || "Proof is unavailable right now.");
-      setMessages(items => [...items, { role: "proof", text: payload.reply, source: payload.source || source, time: new Date().toISOString() }]);
+      const reply = payload.reply || "Reddy could not produce a response right now. Please try again.";
+      setMessages(items => [...items, { role: "proof", text: reply, source: payload.source || source, time: new Date().toISOString() }]);
       if (interviewMode) setInterviewRound(round => Math.min(round + 1, 10));
-      if (autoSpeak) speakMessage(payload.reply);
+      if (autoSpeak) speakMessage(reply);
     } catch (error) {
-      setMessages(items => [...items, { role: "proof", text: error instanceof Error ? error.message : "Proof is unavailable right now.", source, time: new Date().toISOString() }]);
-    } finally { setLoading(false); }
+      setMessages(items => [...items, { role: "proof", text: error instanceof DOMException && error.name === "AbortError" ? "Reddy is taking longer than expected. Please try again." : error instanceof Error ? error.message : "Reddy is unavailable right now. Please try again.", source, time: new Date().toISOString() }]);
+    } finally { window.clearTimeout(timeout); setLoading(false); }
   }
 
   return <>
     {!open && <div className="proof-launch" ref={launchRef}><button type="button" className="proof-callout proof-callout-loop" onClick={openPanel} aria-label="Ask Reddy about Lokesh">Hey 👋 Want to know about Lokesh? <b>Ask Reddy</b></button><button className="proof-pill" type="button" onClick={openPanel} aria-label="Open Reddy portfolio assistant"><ReddyImage className="reddy-image" /></button></div>}
     {open && <aside className="proof-panel" ref={panelRef} aria-label="Reddy portfolio assistant">
-      <header className="proof-panel-head"><div className="proof-panel-identity"><div><strong>I’m Reddy</strong><small className="reddy-tagline" key={taglineIndex}><i className="reddy-live-dot"/>{reddyTaglines[taglineIndex]}</small></div><ReddyImage className="proof-avatar-image" /></div><div className="proof-head-actions"><span>LIVE</span><button type="button" onClick={() => setOpen(false)} aria-label="Close Reddy assistant">✕</button></div></header>
+      <header className="proof-panel-head"><div className="proof-panel-identity"><div><strong>I’m Reddy</strong><small className="reddy-tagline" key={taglineIndex}><i className="reddy-live-dot"/>{reddyTaglines[taglineIndex]}</small></div><ReddyImage className="proof-avatar-image" /></div><div className="proof-head-actions"><button type="button" onClick={() => setOpen(false)} aria-label="Close Reddy assistant">✕</button></div></header>
       <div className="reddy-controls" aria-label="Reddy controls">
         <div className="reddy-view-menu" ref={viewAsMenuRef}>
           <button className="reddy-menu-trigger" type="button" onClick={() => { setViewAsOpen(value => !value); setMoreOpen(false); setExploreOpen(false); }} aria-label="Choose visitor perspective" aria-expanded={viewAsOpen}>View as {visitorMode === "recruiter" ? "Recruiter" : visitorMode === "manager" ? "Manager" : "Technical"} <ChevronDown size={12}/></button>
@@ -336,23 +361,24 @@ export default function ProofBar() {
         <div className="reddy-action-menu" ref={actionMenuRef}>
           <button className="reddy-menu-trigger" type="button" onClick={() => { setExploreOpen(value => !value); setMoreOpen(false); }} aria-label="Explore Reddy capabilities" aria-expanded={exploreOpen}>Explore <span>⌄</span></button>
           {exploreOpen && <div className="reddy-action-menu-grid" role="menu">
-            {capabilityPrompts.map(([label, prompt]) => <button type="button" key={label} onClick={() => void send(prompt)}>{label}</button>)}
-            <button type="button" onClick={() => activateTool("jd")}>Resume + JD match</button>
-            <button type="button" onClick={() => activateTool("tailor")}>Tailor resume</button>
-            <button type="button" onClick={() => activateTool("contact")}>Draft contact</button>
-            <button type="button" onClick={startInterviewMode}>Interview practice</button>
-            <button type="button" onClick={() => activateTool("receipt")}>Proof receipt</button>
+            {compactExplorePrompts.map(([label, prompt]) => <button type="button" key={label} onClick={() => void send(prompt)}>{label}</button>)}
+            <button type="button" onClick={() => { setExploreOpen(false); activateTool("jd"); }}>Match a JD</button>
+            <button type="button" onClick={() => { setExploreOpen(false); activateTool("tailor"); }}>Tailor resume</button>
+            <button type="button" onClick={() => { setExploreOpen(false); activateTool("contact"); }}>Draft contact</button>
+            <button type="button" onClick={() => { setExploreOpen(false); activateTool("interview"); }}>Interview kit</button>
+            <button type="button" onClick={() => { setExploreOpen(false); activateTool("receipt"); }}>Proof receipt</button>
           </div>}
         </div>
         {interviewMode && <button className="reddy-interview-exit" type="button" onClick={() => setInterviewMode(false)}>Exit interview</button>}
       </div>
-      <div className="proof-panel-messages" ref={bodyRef} data-lenis-prevent data-lenis-prevent-wheel data-lenis-prevent-touch>
+      <div className="proof-panel-messages" ref={bodyRef} data-lenis-prevent data-lenis-prevent-wheel data-lenis-prevent-touch aria-live="polite" aria-label="Reddy conversation">
         {messages.map((message, index) => <div className={`proof-panel-message ${message.role}`} key={`${message.role}-${index}`}><span className="proof-panel-role">{message.role === "user" ? "You" : "Reddy"}{message.time && <time dateTime={message.time}> · {formatMessageTime(message.time)}</time>}</span><div className="proof-panel-bubble">{renderMessage(message.text)}</div>{message.role === "proof" && <button className="reddy-copy-button" type="button" onClick={() => void copyMessage(index, message.text)} aria-label={copied === index ? "Copied response" : "Copy response"} title={copied === index ? "Copied" : "Copy response"}><Copy size={13} strokeWidth={1.8}/></button>}</div>)}
+        {messages.length === 1 && !loading && <div className="reddy-starters" aria-label="Conversation starters">{capabilityPrompts.slice(0, 5).map(([label, prompt]) => <button type="button" key={label} onClick={() => void send(prompt)}>{label}</button>)}</div>}
         {tool && tool !== "receipt" && <div className="reddy-tool-form"><span>{tool === "jd" ? "JOB DESCRIPTION MATCHER" : tool === "tailor" ? "RESUME TAILOR" : tool === "contact" ? "CONTACT COMPOSER" : "INTERVIEW PREP"}</span><textarea value={toolText} onChange={event => setToolText(event.target.value)} placeholder={tool === "jd" || tool === "tailor" ? "Paste a job description…" : tool === "contact" ? "Why would you like to connect with Lokesh?" : "What role should the interview kit target?"} /><div><button type="button" onClick={() => setTool(null)}>Cancel</button><button type="button" disabled={!toolText.trim() || loading} onClick={() => { const prompt = tool === "jd" ? `Match this job description against Lokesh's experience. Extract requirements and classify each as strong match, adjacent match, or gap with evidence and links:\n\n${toolText}` : tool === "tailor" ? `Tailor Lokesh's resume for this job description. Return a recruiter-ready headline, summary, prioritized skills, and experience bullets using only truthful portfolio evidence. Include a short gap note and the resume link:\n\n${toolText}` : tool === "contact" ? `Draft a professional contact email based on this context. Include subject, concise message, and next step:\n\n${toolText}` : `Create an interview preparation kit for this role. Include questions, expected discussion areas, follow-ups, and evidence from Lokesh's portfolio:\n\n${toolText}`; setTool(null); void send(prompt); }}>Run</button></div></div>}
         {loading && <span className="proof-panel-thinking">Reddy is thinking...</span>}
       </div>
       {voiceError && <div className="reddy-voice-error" role="status">{voiceError}</div>}
-      <form className="proof-panel-input" onSubmit={event => { event.preventDefault(); void send(); }}><input ref={inputRef} value={input} onChange={event => setInput(event.target.value)} placeholder="Ask anything..." aria-label="Ask Reddy a question" /><button type="button" className={`reddy-voice ${listening ? "active" : ""}`} onClick={startVoice} aria-label={listening ? "Listening" : "Use voice input"} title={listening ? "Listening…" : "Use voice input"}><MicrophoneIcon listening={listening} /></button><button type="submit" disabled={!input.trim() || loading}>Send</button></form>
+      <form className="proof-panel-input" onSubmit={event => { event.preventDefault(); void send(); }}><input ref={inputRef} value={input} onChange={event => setInput(event.target.value)} placeholder="Ask anything..." aria-label="Ask Reddy a question" /><button type="button" className={`reddy-voice ${listening ? "active" : ""}`} onClick={startVoice} aria-label={listening ? "Listening" : "Use voice input"} title={listening ? "Listening…" : "Use voice input"}><MicrophoneIcon listening={listening} /></button><button type="submit" className="reddy-send" disabled={!input.trim() || loading} aria-label="Send message">Send</button></form>
     </aside>}
   </>;
 }

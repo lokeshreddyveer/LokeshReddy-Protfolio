@@ -51,6 +51,7 @@ type ModuleId =
   | "skills";
 type Persona =
   "Recruiter" | "Engineering Manager" | "AI Architect" | "Security Reviewer";
+type StudioLiveResponse = { answer: string; sources: string[]; live?: boolean; error?: string };
 
 const modules: {
   id: ModuleId;
@@ -125,7 +126,7 @@ const modules: {
   {
     id: "rag",
     no: "10",
-    title: "Local RAG Playground",
+    title: "RAG Control Room",
     short: "Chunk, retrieve, answer",
     icon: FileSearch,
   },
@@ -828,10 +829,10 @@ export default function StudioPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ question, scope }),
       });
-      const payload = await response.json();
+      const payload = await response.json() as StudioLiveResponse;
       if (!response.ok)
         throw new Error(payload.error || "Live review unavailable");
-      setLiveAnswer(payload);
+      setLiveAnswer({ answer: payload.answer, sources: payload.sources, live: payload.live });
     } catch (error) {
       setLiveError(
         error instanceof Error ? error.message : "Live review unavailable",
@@ -1908,6 +1909,7 @@ export default function StudioPage() {
         <nav
           className="studio-module-nav"
           aria-label="Engineering Studio modules"
+          data-lenis-prevent="true"
         >
           <p>SELECT A MODULE</p>
           {modules.map(({ id, no, title, short, icon: Icon }) => (

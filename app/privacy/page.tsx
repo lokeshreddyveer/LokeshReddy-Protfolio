@@ -19,10 +19,10 @@ export default function PrivacyPage() {
         <p>Reddy is a browser-based portfolio assistant. When you send a message, the selected conversation history, current page path, language, and audience mode are sent to the site’s server route so an AI provider can generate a response. The assistant is instructed to use public portfolio information; do not enter confidential, financial, health, employment, or other sensitive personal information.</p>
 
         <h2>Technical data</h2>
-        <p>The hosting provider may process routine request data needed to deliver and secure the site, such as an IP address, browser information, requested URL, timestamps, and security events. This website does not independently operate an analytics dashboard, advertising tracker, fingerprinting system, or cross-site tracking cookie.</p>
+        <p>The hosting provider may process routine request data needed to deliver and secure the site, such as an IP address, browser information, requested URL, timestamps, and security events. Optional analytics integrations may be enabled for site improvement: Microsoft Clarity for masked interaction recordings and Google Analytics for aggregated traffic measurement.</p>
 
         <h2>Cookies and local storage</h2>
-        <p>The portfolio does not intentionally set advertising or analytics cookies. Theme preference and Reddy’s recent conversation are stored locally in your browser so the interface can persist between visits. You can clear that data through your browser’s site-storage controls or use Reddy’s New chat action.</p>
+        <p>The portfolio does not use advertising trackers. If analytics is enabled, the relevant provider may set or read measurement identifiers according to its own privacy terms. Theme preference and Reddy’s recent conversation are stored locally in your browser so the interface can persist between visits. You can clear that data through your browser’s site-storage controls or use Reddy’s New chat action.</p>
 
         <h2>External links and downloads</h2>
         <p>Links to professional-profile, email, and other third-party destinations are governed by those services’ privacy practices. Resume downloads are served as a static file from this site.</p>

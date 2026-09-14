@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import gsap from "gsap";
 import { SplitText } from "gsap/SplitText";
 import { experience, fieldNotes, projects, skillGroups } from "@/lib/portfolio";
+import { ReadingProgress } from "@/components/article-reading-tools";
 
 const reveal = { initial: { opacity: 0, y: 24 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, amount: 0.15 }, transition: { duration: 0.6, ease: "easeOut" as const } };
 const proofStages = [
@@ -41,6 +42,7 @@ export default function Home() {
   }, []);
 
   return <main className="minimal-site full-home">
+    <ReadingProgress />
     <section className="minimal-hero" id="top" ref={hero}><div className="minimal-container minimal-hero-inner">
       <div className="minimal-square" aria-hidden="true" />
       <div className="minimal-eyebrow"><i />Lokesh / Engineering portfolio / 2026</div>
@@ -71,7 +73,7 @@ export default function Home() {
     <motion.section className="minimal-work" id="work" {...reveal}><div className="minimal-container">
       <div className="minimal-section-head"><div><p className="minimal-label"><i />Selected Work</p><h2>Systems built for real constraints.</h2></div><a href="/projects" className="home-section-link">4 featured / {projects.length} total ↗</a></div>
       <div className="minimal-projects">{projects.slice(0,4).map((project, index) => <motion.div className="minimal-project" key={project.slug} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.15 }} transition={{ duration: 0.6, delay: index * 0.1, ease: "easeOut" }}><a href={`/projects/${project.slug}`} className="minimal-project-link"><span className="minimal-number">{String(index + 1).padStart(2,"0")}</span><div><h3>{project.title}</h3><p>{project.outcome}</p><small>{project.metrics[0]?.[0]} · {project.metrics[0]?.[1]}</small></div><div className="minimal-tags">{project.stack.slice(0, 3).map(tag => <span key={tag}>{tag}</span>)}</div></a></motion.div>)}</div>
-      <a href="/projects" className="home-projects-more">View all 11 case studies <span>→</span></a>
+      <a href="/projects" className="home-projects-more">View all {projects.length} case studies <span>→</span></a>
     </div></motion.section>
 
     <motion.section className="architecture-section full-section" {...reveal}><div className="minimal-container"><div className="full-section-head"><div><p className="minimal-label"><i />Interactive architecture</p><h2>Follow a request through the system.</h2></div><a href="/architecture">Open architecture explorer ↗</a></div><div className="architecture-line">{architecture.map((stage,index)=><a href="/architecture" key={stage}><span>0{index+1}</span><strong>{stage}</strong></a>)}</div><div className="architecture-feature"><span>03 / Retrieval</span><div><h3>Hybrid search with filters, query expansion, and lineage.</h3><p>Control: Evidence lineage</p></div><strong>Failure mode: Weak recall</strong></div></div></motion.section>

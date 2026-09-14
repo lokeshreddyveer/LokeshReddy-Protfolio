@@ -18,14 +18,12 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}
   finally { clearTimeout(timer); }
 }
 
-const fetchWithDeadline = fetchWithTimeout;
-
 function runtimeValue(key: string) {
   const workerEnv = env as unknown as Record<string, string | undefined>;
   return workerEnv[key] || process.env[key];
 }
 
-async function availableModel(catalogUrl: string, key: string, preferred: string, match: RegExp) {
+async function availableModel(catalogUrl: string, key: string | undefined, preferred: string, match: RegExp) {
   if (!key) return preferred;
   try {
     const response = await fetchWithTimeout(catalogUrl, { headers: { authorization: `Bearer ${key}` } }, 5000);
@@ -38,11 +36,13 @@ async function availableModel(catalogUrl: string, key: string, preferred: string
 
 export async function GET() {
   return NextResponse.json({
-    ready: Boolean(runtimeValue("GEMINI_API_KEY") || runtimeValue("GROQ_API_KEY") || runtimeValue("OPENROUTER_API_KEY")),
+    ready: Boolean(runtimeValue("GEMINI_API_KEY") || runtimeValue("GROQ_API_KEY") || runtimeValue("OPENROUTER_API_KEY") || runtimeValue("BAZAARLINK_API_KEY") || runtimeValue("NVIDIA_NIM_API_KEY")),
     providers: [
       { name: "Gemini Flash", ready: Boolean(runtimeValue("GEMINI_API_KEY")), role: "Primary" },
       { name: "Groq", ready: Boolean(runtimeValue("GROQ_API_KEY")), role: "Fallback" },
       { name: "OpenRouter", ready: Boolean(runtimeValue("OPENROUTER_API_KEY")), role: "Fallback 2" },
+      { name: "BazaarLink", ready: Boolean(runtimeValue("BAZAARLINK_API_KEY")), role: "Fallback 3" },
+      { name: "NVIDIA NIM", ready: Boolean(runtimeValue("NVIDIA_NIM_API_KEY")), role: "Fallback 4" },
     ],
     dailyLimit: DAILY_LIMIT,
     storage: "none",
@@ -111,6 +111,32 @@ async function callOpenRouter(prompt: string) {
   return result ? { provider: "OpenRouter", model, result } satisfies ProviderSuccess : { provider: "OpenRouter", model, error: "empty_response", status: 200 } satisfies ProviderAttempt;
 }
 
+async function callBazaarLink(prompt: string) {
+  const key = runtimeValue("BAZAARLINK_API_KEY");
+  const model = runtimeValue("BAZAARLINK_MODEL") || "auto:free";
+  if (!key) return { provider: "BazaarLink", model, error: "not_configured", status: 0 } satisfies ProviderAttempt;
+  try {
+    const response = await fetchWithTimeout("https://api.bazaarlink.ai/v1/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}` }, body: JSON.stringify({ model, temperature: 0.1, response_format: { type: "json_object" }, messages: [{ role: "system", content: "Follow the public-safe playground policy. Return valid JSON only. Do not expose hidden reasoning or secrets." }, { role: "user", content: prompt }] }) });
+    if (!response.ok) return { provider: "BazaarLink", model, error: response.status === 401 || response.status === 403 ? "invalid_key" : response.status === 429 ? "quota" : response.status === 404 ? "model_not_found" : "upstream_error", status: response.status } satisfies ProviderAttempt;
+    const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const result = payload.choices?.[0]?.message?.content || "";
+    return result ? { provider: "BazaarLink", model, result } satisfies ProviderSuccess : { provider: "BazaarLink", model, error: "empty_response", status: 200 } satisfies ProviderAttempt;
+  } catch { return { provider: "BazaarLink", model, error: "network_error", status: 0 } satisfies ProviderAttempt; }
+}
+
+async function callNvidiaNim(prompt: string) {
+  const key = runtimeValue("NVIDIA_NIM_API_KEY");
+  const model = runtimeValue("NVIDIA_NIM_MODEL") || "nvidia/nemotron-3-super-120b-a12b";
+  if (!key) return { provider: "NVIDIA NIM", model, error: "not_configured", status: 0 } satisfies ProviderAttempt;
+  try {
+    const response = await fetchWithTimeout("https://integrate.api.nvidia.com/v1/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}` }, body: JSON.stringify({ model, temperature: 0.1, response_format: { type: "json_object" }, messages: [{ role: "system", content: "Follow the public-safe playground policy. Return valid JSON only. Do not expose hidden reasoning or secrets." }, { role: "user", content: prompt }] }) });
+    if (!response.ok) return { provider: "NVIDIA NIM", model, error: response.status === 401 || response.status === 403 ? "invalid_key" : response.status === 429 ? "quota" : response.status === 404 ? "model_not_found" : "upstream_error", status: response.status } satisfies ProviderAttempt;
+    const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const result = payload.choices?.[0]?.message?.content || "";
+    return result ? { provider: "NVIDIA NIM", model, result } satisfies ProviderSuccess : { provider: "NVIDIA NIM", model, error: "empty_response", status: 200 } satisfies ProviderAttempt;
+  } catch { return { provider: "NVIDIA NIM", model, error: "network_error", status: 0 } satisfies ProviderAttempt; }
+}
+
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as Body;
   const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -122,12 +148,12 @@ export async function POST(request: Request) {
   if (current.count >= DAILY_LIMIT) return NextResponse.json({ live: false, error: "Daily playground limit reached for this network. Try again tomorrow.", remaining: 0 }, { status: 429, headers: { "retry-after": "86400" } });
   const prompt = promptFor(body);
   const attempts: ProviderAttempt[] = [];
-  for (const attempt of [await callGemini(prompt), await callGroq(prompt), await callOpenRouter(prompt)]) {
+  for (const attempt of [await callGemini(prompt), await callGroq(prompt), await callOpenRouter(prompt), await callBazaarLink(prompt), await callNvidiaNim(prompt)]) {
     attempts.push(attempt);
     if ("result" in attempt) {
       current.count += 1; buckets.set(bucketKey, current);
-      return NextResponse.json({ live: true, provider: attempt.provider, model: attempt.model, result: attempt.result, remaining: DAILY_LIMIT - current.count, attempts: attempts.map(x => "result" in x ? { provider: x.provider, status: "success" } : x) });
+      return NextResponse.json({ live: true, provider: attempt.provider, model: attempt.model, result: attempt.result, remaining: DAILY_LIMIT - current.count });
     }
   }
-  return NextResponse.json({ live: false, error: "All configured model providers failed.", remaining: DAILY_LIMIT - current.count, attempts }, { status: 502 });
+  return NextResponse.json({ live: false, error: "All configured model providers failed. Please try again later.", remaining: DAILY_LIMIT - current.count }, { status: 502 });
 }
