@@ -159,7 +159,7 @@ async function call(
   messages: ChatMessage[],
   maxOutputTokens = 220,
 ) {
-  if (!key) return null;
+  if (runtime("REDDY_LLM_ENABLED") === "false" || !key) return null;
   try {
     if (url.includes("generativelanguage.googleapis.com")) {
       const systemMessage = messages.find((message) => message.role === "system");
@@ -237,6 +237,8 @@ async function call(
 }
 
 async function gatewayHealthReply() {
+  if (runtime("REDDY_LLM_ENABLED") === "false")
+    return "Reddy’s AI connection is paused for this test. Portfolio answers and built-in replies are still available.";
   const healthMessages: ChatMessage[] = [
     { role: "system", content: "Reply with exactly OK." },
     { role: "user", content: "Health check. Reply with exactly OK." },
